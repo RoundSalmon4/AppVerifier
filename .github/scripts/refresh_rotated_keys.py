@@ -503,19 +503,19 @@ def main():
         all_packages.update(packages)
 
     latest_reports = {}
-    if all_packages:
-        with tempfile.TemporaryDirectory() as tmp:
-            latest_reports = resolve_latest_reports(all_packages, tmp)
-
-    for issue_num, entry in confirmed_by_issue.items():
-        packages = entry["packages"]
-        run_id = entry["fallback_run"]
-        for pkg, source, action, used_run in merge_issue_detailed(
-            store, {"number": issue_num}, packages, run_id, latest_reports
-        ):
-            summary_rows.append((pkg, action, issue_num, used_run, source))
-            if action in ("added", "updated"):
-                total_added += 1
+    # Keep the temp dir alive through the merge so the downloaded reports
+    # remain readable; it is cleaned up once the merge is done.
+    with tempfile.TemporaryDirectory() as tmp:
+        latest_reports = resolve_latest_reports(all_packages, tmp)
+        for issue_num, entry in confirmed_by_issue.items():
+            packages = entry["packages"]
+            run_id = entry["fallback_run"]
+            for pkg, source, action, used_run in merge_issue_detailed(
+                store, {"number": issue_num}, packages, run_id, latest_reports
+            ):
+                summary_rows.append((pkg, action, issue_num, used_run, source))
+                if action in ("added", "updated"):
+                    total_added += 1
 
     total_removed = reconcile_with_data_yml(store, summary_rows)
 
