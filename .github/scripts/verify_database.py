@@ -27,18 +27,6 @@ FP_RE = re.compile(r"[0-9A-Fa-f]{2}(:[0-9A-Fa-f]{2}){31}")
 RAW_HEX_RE = re.compile(r"certificate (?:SHA-256|SHA256) digest:\s*([0-9A-Fa-f]{64})")
 
 
-class ExtractionError(Exception):
-    def __init__(self, apksigner_out, apksigner_err, apksigner_rc,
-                 keytool_out, keytool_err):
-        parts = []
-        detail = (apksigner_out + "\n" + apksigner_err).strip()
-        if detail:
-            parts.append(f"apksigner rc={apksigner_rc}: {detail[:400]}")
-        if keytool_err:
-            parts.append(f"keytool: {keytool_err[:200]}")
-        super().__init__("; ".join(parts) if parts else "no signing block found")
-
-
 def load_data_yml(path):
     with open(path, encoding="utf-8") as f:
         data = yaml.safe_load(f)
@@ -268,19 +256,6 @@ def _fetch_cert_outputs(apk_path):
     return [], None
 
 
-def extract_fingerprint(apk_path):
-    """Return the primary signing-certificate fingerprint of an APK."""
-    _, primary = _fetch_cert_outputs(apk_path)
-    return primary
-
-
-def extract_all_fingerprints(apk_path):
-    """Return the complete list of signing-certificate fingerprints in an APK."""
-    all_fps, _ = _fetch_cert_outputs(apk_path)
-    return all_fps
-
-
-
 def fetch_fdroid_index(repo_url):
     try:
         req = urllib.request.Request(
@@ -318,11 +293,9 @@ def check_apk(url, expected_pkg=None, timeout=60):
             actual_pkg = extract_package_name(apk_path)
             if actual_pkg and actual_pkg != expected_pkg:
                 return None, None, f"package name mismatch: expected {expected_pkg}, got {actual_pkg}"
-        all_fps = extract_all_fingerprints(apk_path)
-        try:
-            fp = extract_fingerprint(apk_path)
-        except ExtractionError as e:
-            return None, all_fps or None, str(e)
+        # Single cert-fetch: one subprocess returns both the primary fingerprint
+        # and the complete key set.
+        all_fps, fp = _fetch_cert_outputs(apk_path)
         if not fp:
             return None, all_fps or None, "could not extract certificate fingerprint"
         return fp, all_fps, None
@@ -398,11 +371,9 @@ def check_google_play(package, timeout=120):
         if actual_pkg and actual_pkg != package:
             return None, None, f"package name mismatch: expected {package}, got {actual_pkg}"
 
-        all_fps = extract_all_fingerprints(apk_path)
-        try:
-            fp = extract_fingerprint(apk_path)
-        except ExtractionError as e:
-            return None, all_fps or None, str(e)
+        # Single cert-fetch: one subprocess returns both the primary fingerprint
+        # and the complete key set.
+        all_fps, fp = _fetch_cert_outputs(apk_path)
         if not fp:
             return None, all_fps or None, "could not extract certificate fingerprint"
         return fp, all_fps, None
@@ -499,6 +470,11 @@ def verify_package(app, source_filter, results, stats):
                 result["status"] = "match"
             else:
                 result["status"] = "mismatch"
+            # Lazy enrichment: only carry the complete signing key set for
+            # mismatches (potential rotations). Matches and errors do not need
+            # it, which keeps the batch pass lean.
+            if result["status"] != "mismatch":
+                result["actual_keys"] = None
             stats[result["status"]] += 1
             results.append(result)
 
