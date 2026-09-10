@@ -80,7 +80,7 @@ Nightly builds include a downloadable text file with hashes shared by users on t
 
 ## Rotated Keys
 
-Nightly builds include a downloadable text file of new signing keys observed on installed apps after a suspected key rotation, where the app's certificate no longer matches the key recorded in the database. These are not independently verified and are not added to the internal database — import them into your user database only if you are confident the app is legitimately signed. Cross-verify against multiple sources before relying on any entry.
+Nightly builds include a downloadable text file of signing certificates observed on apps whose signing key rotated, where the app's certificate no longer matches the key recorded in the database. Each entry lists every signing certificate found on that app's APK, so an imported entry verifies the app completely against its full signing key set. The list is not independently verified and is not added to the internal database — import it into your user database only if you are confident the apps are legitimately signed. Cross-verify against multiple sources before relying on any entry.
 
 ## Share All Apps
 

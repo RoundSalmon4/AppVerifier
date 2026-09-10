@@ -276,7 +276,7 @@ jobs:
 
           **Community hashes:** \`grapheneos-forum-hashes-${{ steps.date.outputs.date }}.txt\` is included in the release assets — hashes shared by users on the [GrapheneOS forum](https://discuss.grapheneos.org/d/15368-lets-compare-hashes-for-apps-not-in-appverifiers-database), in text format for import into the user database. These are community-submitted with no guarantee of accuracy. Cross-verify against multiple sources before trusting.
 
-          **Rotated keys:** \`rotated-keys-${{ steps.date.outputs.date }}.txt\` is included in the release assets. These are new signing keys observed on installed apps after a suspected key rotation, where the app's certificate no longer matches the key recorded in the database. They are NOT independently verified by AppVerifier BG. Only add them to your user database if you are confident the app is legitimately signed. Cross-verify against multiple sources before trusting.
+          **Rotated keys:** \`rotated-keys-${{ steps.date.outputs.date }}.txt\` is included in the release assets. It lists every signing certificate observed on apps whose key rotated, so each imported entry verifies completely against the full signing key set. The list is NOT independently verified by AppVerifier BG. Only import it if you are confident the app's APK is legitimately signed. Cross-verify against multiple sources before trusting.
           BODYEOF
 
           DATE="${{ steps.date.outputs.date }}"

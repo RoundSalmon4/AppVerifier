@@ -44,18 +44,26 @@ def load_store(path):
     result = []
     for e in entries:
         pkg = e.get("package", "").strip()
-        new_key = split_fingerprint(e.get("new_key"))
-        old_keys = [split_fingerprint(k) for k in e.get("old_keys", [])]
-        old_keys = [k for k in old_keys if k]
-        if not pkg or not new_key:
-            print(f"SKIP_INVALID entry: package={pkg!r} new_key={e.get('new_key')!r}")
+        # Prefer the complete signing key set (keys). Fall back to the older
+        # new_key/old_keys split for backwards compatibility with prior stores.
+        keys = []
+        raw_keys = e.get("keys")
+        if raw_keys:
+            keys = [split_fingerprint(k) for k in raw_keys]
+        else:
+            new_key = split_fingerprint(e.get("new_key"))
+            if new_key:
+                keys.append(new_key)
+            keys += [k for k in (split_fingerprint(k) for k in e.get("old_keys", [])) if k]
+        keys = [k for k in keys if k]
+        if not pkg or not keys:
+            print(f"SKIP_INVALID entry: package={pkg!r} keys={e.get('keys') or e.get('new_key')!r}")
             continue
         result.append(
             {
                 "package": pkg,
-                "hashes": [new_key],
-                "hasMultipleSigners": False,
-                "old_keys": old_keys,
+                "hashes": keys,
+                "hasMultipleSigners": len(keys) > 1,
                 "source_issue": e.get("source_issue"),
             }
         )

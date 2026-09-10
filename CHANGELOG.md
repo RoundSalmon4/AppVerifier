@@ -2,6 +2,10 @@
 
 Dates are based on UTC (releases typically around 2am UTC).
 
+## 2026-09-11
+
+- Rotated keys list now includes all signing certificates for each app, not just the rotated key, so imported entries verify completely against apps with multiple signatures.
+
 ## v0.7.2 (2026-09-04)
 
 - App list now remembers your scroll position when returning from an app's details. ([#114](https://github.com/RoundSalmon4/AppVerifierBG/issues/114))

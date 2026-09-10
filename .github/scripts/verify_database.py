@@ -187,6 +187,21 @@ def _search_output(output):
     return None
 
 
+def _search_all_outputs(output):
+    """Return ALL normalized fingerprints found in apksigner/keytool output.
+
+    Multi-signer APKs can print a `SHA-256 digest:` line per certificate, so we
+    collect every match rather than the first one. Used to capture the complete
+    key set of a downloaded APK for the rotated-keys store.
+    """
+    fps = set()
+    for m in FP_RE.findall(output or ""):
+        fps.add(normalize_fp(m))
+    for m in RAW_HEX_RE.findall(output or ""):
+        fps.add(normalize_fp(m))
+    return sorted(fps)
+
+
 def extract_fingerprint(apk_path):
     if not os.path.getsize(apk_path):
         return None
@@ -253,6 +268,76 @@ def extract_fingerprint(apk_path):
                           keytool_out, keytool_err)
 
 
+def extract_all_fingerprints(apk_path):
+    """Return the complete list of signing-certificate fingerprints in an APK.
+
+    Prefers `apksigner verify --print-certs`, which prints one SHA-256 digest
+    per certificate for multi-signer APKs. Falls back to keytool if apksigner
+    is unavailable. Returns a sorted list of normalized fingerprints, or an
+    empty list if none could be extracted.
+    """
+    if not os.path.getsize(apk_path):
+        return []
+
+    apksigner_out = ""
+    apksigner_err = ""
+    try:
+        apksigner_path = _find_apksigner() or "apksigner"
+        result = subprocess.run(
+            [apksigner_path, "verify", "--print-certs", apk_path],
+            capture_output=True,
+            text=True,
+            timeout=15,
+        )
+        apksigner_out = result.stdout.strip()
+        apksigner_err = result.stderr.strip()
+        fps = _search_all_outputs(apksigner_out) or _search_all_outputs(apksigner_err)
+        if fps:
+            return fps
+    except (subprocess.TimeoutExpired, FileNotFoundError) as e:
+        apksigner_err = str(e)
+
+    keytool_out = ""
+    keytool_err = ""
+    try:
+        result = subprocess.run(
+            ["keytool", "-printcert", "-jarfile", apk_path],
+            capture_output=True,
+            text=True,
+            timeout=15,
+        )
+        keytool_out = result.stdout.strip()
+        keytool_err = result.stderr.strip()
+        fps = _search_all_outputs(keytool_out) or _search_all_outputs(keytool_err)
+        if fps:
+            return fps
+    except (subprocess.TimeoutExpired, FileNotFoundError) as e:
+        keytool_err = str(e)
+
+    # fallback: extract JAR signature manually
+    for cert_file in ("META-INF/CERT.RSA", "META-INF/CERT.EC"):
+        try:
+            result = subprocess.run(
+                ["unzip", "-p", apk_path, cert_file],
+                capture_output=True,
+                timeout=15,
+            )
+            if result.returncode == 0 and result.stdout:
+                cert_result = subprocess.run(
+                    ["keytool", "-printcert", "-file", "-"],
+                    input=result.stdout,
+                    capture_output=True,
+                    timeout=15,
+                )
+                fps = _search_all_outputs(cert_result.stdout.decode())
+                if fps:
+                    return fps
+        except (subprocess.TimeoutExpired, FileNotFoundError):
+            pass
+
+    return []
+
+
 def fetch_fdroid_index(repo_url):
     try:
         req = urllib.request.Request(
@@ -279,24 +364,25 @@ def check_apk(url, expected_pkg=None, timeout=60):
     try:
         ok, err = download(url, apk_path, timeout)
         if not ok:
-            return None, err
+            return None, None, err
         if os.path.getsize(apk_path) == 0:
-            return None, "downloaded file is empty"
+            return None, None, "downloaded file is empty"
         if not _is_valid_apk(apk_path):
-            return None, "downloaded file is not a valid APK"
+            return None, None, "downloaded file is not a valid APK"
         if expected_pkg:
             if not is_valid_package_name(expected_pkg):
-                return None, f"invalid expected package name: {expected_pkg}"
+                return None, None, f"invalid expected package name: {expected_pkg}"
             actual_pkg = extract_package_name(apk_path)
             if actual_pkg and actual_pkg != expected_pkg:
-                return None, f"package name mismatch: expected {expected_pkg}, got {actual_pkg}"
+                return None, None, f"package name mismatch: expected {expected_pkg}, got {actual_pkg}"
+        all_fps = extract_all_fingerprints(apk_path)
         try:
             fp = extract_fingerprint(apk_path)
         except ExtractionError as e:
-            return None, str(e)
+            return None, all_fps or None, str(e)
         if not fp:
-            return None, "could not extract certificate fingerprint"
-        return fp, None
+            return None, all_fps or None, "could not extract certificate fingerprint"
+        return fp, all_fps, None
     finally:
         try:
             os.unlink(apk_path)
@@ -318,40 +404,40 @@ def _custom_fdroid_names(packages):
 def check_fdroid_source(package, repo_url):
     index = fetch_fdroid_index(repo_url)
     if not index:
-        return None, "could not fetch F-Droid repo index"
+        return None, None, "could not fetch F-Droid repo index"
     apk_name = get_latest_apk_name(index, package)
     if not apk_name:
-        return None, "package not found in F-Droid repo"
+        return None, None, "package not found in F-Droid repo"
     apk_url = f"{repo_url}/{apk_name}"
     return check_apk(apk_url, expected_pkg=package)
 
 
 def check_google_play(package, timeout=120):
     if not is_valid_package_name(package):
-        return None, f"invalid expected package name: {package}"
+        return None, None, f"invalid expected package name: {package}"
 
     email = os.environ.get("GOOGLE_PLAY_EMAIL", "")
     aas_token = os.environ.get("GOOGLE_PLAY_AAS_TOKEN", "")
     if not email or not aas_token:
-        return None, "GOOGLE_PLAY_EMAIL/AAS_TOKEN not set"
+        return None, None, "GOOGLE_PLAY_EMAIL/AAS_TOKEN not set"
 
     try:
         from googleplay import GooglePlayClient, GooglePlayError, TermsOfServiceError
     except ImportError:
-        return None, "googleplay-python not installed (pip install googleplay-python)"
+        return None, None, "googleplay-python not installed (pip install googleplay-python)"
 
     try:
         api = GooglePlayClient(email=email, aas_token=aas_token)
         api.login()
     except TermsOfServiceError as e:
-        return None, f"Google Play ToS error: {e}"
+        return None, None, f"Google Play ToS error: {e}"
     except GooglePlayError as e:
-        return None, f"Google Play login failed: {e}"
+        return None, None, f"Google Play login failed: {e}"
     except Exception as e:
         # Transient Google Play API failure (e.g. 502/503 on checkin) or any
         # unexpected error during login. Do not abort the whole run; record it
         # as a per-package error instead.
-        return None, f"Google Play login error: {e}"
+        return None, None, f"Google Play login error: {e}"
 
     workdir = tempfile.mkdtemp()
     try:
@@ -363,29 +449,30 @@ def check_google_play(package, timeout=120):
                     f.write(chunk)
 
         if not os.path.getsize(apk_path):
-            return None, "downloaded APK is empty"
+            return None, None, "downloaded APK is empty"
 
         actual_pkg = extract_package_name(apk_path)
         if actual_pkg and actual_pkg != package:
-            return None, f"package name mismatch: expected {package}, got {actual_pkg}"
+            return None, None, f"package name mismatch: expected {package}, got {actual_pkg}"
 
+        all_fps = extract_all_fingerprints(apk_path)
         try:
             fp = extract_fingerprint(apk_path)
         except ExtractionError as e:
-            return None, str(e)
+            return None, all_fps or None, str(e)
         if not fp:
-            return None, "could not extract certificate fingerprint"
-        return fp, None
+            return None, all_fps or None, "could not extract certificate fingerprint"
+        return fp, all_fps, None
     except GooglePlayError as e:
         msg = str(e).lower()
         if ("400" in msg and "purchase" in msg) or "not purchased" in msg or "no download url" in msg:
-            return None, "PAID APP — requires purchase or not available for download"
-        return None, f"Google Play download error: {e}"
+            return None, None, "PAID APP — requires purchase or not available for download"
+        return None, None, f"Google Play download error: {e}"
     except Exception as e:
         msg = str(e).lower()
         if ("400" in msg and "purchase" in msg) or "not purchased" in msg or "no download url" in msg:
-            return None, "PAID APP — requires purchase or not available for download"
-        return None, f"Google Play download error: {e}"
+            return None, None, "PAID APP — requires purchase or not available for download"
+        return None, None, f"Google Play download error: {e}"
     finally:
         try:
             shutil.rmtree(workdir)
@@ -423,6 +510,7 @@ def verify_package(app, source_filter, results, stats):
                 "source": name,
                 "recorded": recorded,
                 "actual": None,
+                "actual_keys": None,
                 "status": "error",
                 "error": None,
                 "multi_signer": is_multi,
@@ -432,24 +520,28 @@ def verify_package(app, source_filter, results, stats):
                 if not link:
                     result["error"] = "no APK link in source entry"
                 else:
-                    actual, err = check_apk(link, expected_pkg=pkg)
+                    actual, actual_keys, err = check_apk(link, expected_pkg=pkg)
                     result["actual"] = actual
+                    result["actual_keys"] = actual_keys
                     result["error"] = err
             elif name in FDROID_REPOS:
-                actual, err = check_fdroid_source(pkg, FDROID_REPOS[name])
+                actual, actual_keys, err = check_fdroid_source(pkg, FDROID_REPOS[name])
                 result["actual"] = actual
+                result["actual_keys"] = actual_keys
                 result["error"] = err
             elif name.startswith("F-Droid ("):
                 repo = (src.get("apk") or {}).get("repo", "")
                 if not repo:
                     result["error"] = "no repo URL in custom F-Droid source"
                 else:
-                    actual, err = check_fdroid_source(pkg, repo)
+                    actual, actual_keys, err = check_fdroid_source(pkg, repo)
                     result["actual"] = actual
+                    result["actual_keys"] = actual_keys
                     result["error"] = err
             elif name == GOOGLE_PLAY_SOURCE:
-                actual, err = check_google_play(pkg)
+                actual, actual_keys, err = check_google_play(pkg)
                 result["actual"] = actual
+                result["actual_keys"] = actual_keys
                 result["error"] = err
             else:
                 result["error"] = f"unsupported source type: {name}"

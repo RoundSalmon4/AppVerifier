@@ -163,17 +163,20 @@ def merge_issue_detailed(store, issue, packages, run_id):
             if r.get("status") != "mismatch":
                 print(f"WARN issue #{issue['number']}: {pkg} is not a mismatch, skipping")
                 continue
-            actual = split_fingerprint(r.get("actual"))
-            recorded = r.get("recorded") or ""
             source = r.get("source") or "unknown"
-            # recorded may be two concatenated chunks; split into individual keys
-            cleaned = recorded.replace(":", "").upper()
-            old_keys = []
-            for i in range(0, max(0, len(cleaned) - 63), 64):
-                chunk = cleaned[i : i + 64]
-                if len(chunk) == 64:
-                    old_keys.append(":".join(chunk[j : j + 2] for j in range(0, 64, 2)))
-            if not actual:
+            # The report captures the complete signing key set of the mismatched
+            # APK via actual_keys. Fall back to the single actual fingerprint if
+            # actual_keys is absent (older reports).
+            keys = []
+            for k in r.get("actual_keys") or []:
+                kk = split_fingerprint(k)
+                if kk:
+                    keys.append(kk)
+            if not keys:
+                actual = split_fingerprint(r.get("actual"))
+                if actual:
+                    keys.append(actual)
+            if not keys:
                 print(f"WARN issue #{issue['number']}: {pkg} has no actual fingerprint")
                 continue
 
@@ -181,9 +184,8 @@ def merge_issue_detailed(store, issue, packages, run_id):
             existing = next((e for e in entries if e["package"] == pkg), None)
             if existing:
                 action = "unchanged"
-                if existing["new_key"] != actual or set(existing["old_keys"]) != set(old_keys):
-                    existing["new_key"] = actual
-                    existing["old_keys"] = old_keys
+                if set(existing.get("keys", [])) != set(keys):
+                    existing["keys"] = keys
                     existing["source_issue"] = issue["number"]
                     action = "updated"
                 rows.append((pkg, source, action))
@@ -191,8 +193,7 @@ def merge_issue_detailed(store, issue, packages, run_id):
                 entries.append(
                     {
                         "package": pkg,
-                        "old_keys": old_keys,
-                        "new_key": actual,
+                        "keys": keys,
                         "source_issue": issue["number"],
                     }
                 )
@@ -357,17 +358,19 @@ def reconcile_with_data_yml(store, summary_rows=None):
     keep = []
     for entry in store["entries"]:
         pkg = entry["package"]
-        new_key = entry.get("new_key")
         recorded = package_fps.get(pkg, set())
-        new_hex = normalize_hex(new_key) if new_key else ""
-        if new_hex and new_hex in recorded:
+        keys = entry.get("keys") or ([entry["new_key"]] if entry.get("new_key") else [])
+        key_hexes = {normalize_hex(k) for k in keys if k}
+        # Remove the entry once upstream data.yml records every key from the
+        # rotated APK's signing set, meaning the database has fully caught up.
+        if key_hexes and key_hexes.issubset(recorded):
             removed.append(pkg)
         else:
             keep.append(entry)
     if removed:
         store["entries"] = keep
         for pkg in removed:
-            print(f"RECONCILED removed {pkg} (new key now in upstream data.yml)")
+            print(f"RECONCILED removed {pkg} (all keys now in upstream data.yml)")
             summary_rows.append((pkg, "removed (in upstream)", "", "", "upstream data.yml"))
     else:
         print("RECONCILED no entries cleared by upstream data.yml")
