@@ -44,6 +44,22 @@ def split_fingerprint(fp):
     return ":".join(cleaned[i : i + 2] for i in range(0, 64, 2))
 
 
+def split_recorded_chunks(fp):
+    """Split a concatenated multi-signer fingerprint into 32-byte chunks.
+
+    data.yml can record a single fingerprint made of several concatenated
+    signatures (e.g. Google's old key pair for Messaging). Android reports the
+    full rotation lineage via `signingCertificateHistory`, so each chunk must be
+    kept in the store for the app's containsAll check to pass.
+    """
+    if not fp:
+        return []
+    cleaned = fp.replace(":", "").strip().upper()
+    if not cleaned or len(cleaned) % 64 != 0 or not all(c in "0123456789ABCDEF" for c in cleaned):
+        return []
+    return [":".join(cleaned[i : i + 2] for i in range(j, j + 64, 2)) for j in range(0, len(cleaned), 64)]
+
+
 def run_gh(args):
     return subprocess.run(["gh"] + args, capture_output=True, text=True, check=True).stdout
 
@@ -242,21 +258,25 @@ def merge_issue_detailed(store, issue, packages, run_id, latest_reports=None):
                 print(f"WARN issue #{issue['number']}: {pkg} is not a mismatch, skipping")
                 continue
             source = r.get("source") or source
-            # The report captures the complete signing key set of the mismatched
-            # APK via actual_keys. An older report has no actual_keys and only
-            # carries the single `actual` fingerprint.
-            raw_keys = r.get("actual_keys")
-            has_complete = bool(raw_keys)
-            keys = []
-            for k in raw_keys or []:
+            # The device reports the full rotation lineage (signingCertificate
+            # History), not just the certs in the current APK signing block.
+            # So the store must hold the union of:
+            #   - the recorded fingerprint chunks from data.yml (old keys,
+            #     preserved across rotations)
+            #   - the actual_keys observed in the downloaded APK (new keys)
+            # Merging is always monotonic (union); keys are never removed by a
+            # report, so old lineage keys stay available for containsAll.
+            recorded_chunks = split_recorded_chunks(r.get("recorded"))
+            observed = set(recorded_chunks)
+            for k in r.get("actual_keys") or []:
                 kk = split_fingerprint(k)
                 if kk:
-                    keys.append(kk)
-            if not keys:
+                    observed.add(kk)
+            if not observed:
                 actual = split_fingerprint(r.get("actual"))
                 if actual:
-                    keys.append(actual)
-            if not keys:
+                    observed.add(actual)
+            if not observed:
                 print(f"WARN issue #{issue['number']}: {pkg} has no actual fingerprint")
                 continue
 
@@ -264,29 +284,17 @@ def merge_issue_detailed(store, issue, packages, run_id, latest_reports=None):
             existing = next((e for e in entries if e["package"] == pkg), None)
             if existing:
                 action = "unchanged"
-                if has_complete:
-                    # Authoritative report: the observed set is the complete key
-                    # set of the APK, so replace. This lets genuinely-dropped
-                    # signing keys be culled instead of accumulating forever.
-                    if set(existing.get("keys", [])) != set(keys):
-                        existing["keys"] = keys
-                        existing["source_issue"] = issue["number"]
-                        action = "updated"
-                else:
-                    # Degraded/older report: only a single fingerprint is known,
-                    # so union without shrinking. A smaller set here would
-                    # clobber the complete keys captured by a full report.
-                    merged = set(existing.get("keys", [])) | set(keys)
-                    if merged != set(existing.get("keys", [])):
-                        existing["keys"] = sorted(merged)
-                        existing["source_issue"] = issue["number"]
-                        action = "updated"
+                merged = set(existing.get("keys", [])) | observed
+                if merged != set(existing.get("keys", [])):
+                    existing["keys"] = sorted(merged)
+                    existing["source_issue"] = issue["number"]
+                    action = "updated"
                 rows.append((pkg, source, action, used_run))
             else:
                 entries.append(
                     {
                         "package": pkg,
-                        "keys": keys,
+                        "keys": sorted(observed),
                         "source_issue": issue["number"],
                     }
                 )
