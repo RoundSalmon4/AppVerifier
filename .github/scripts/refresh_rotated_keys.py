@@ -165,10 +165,12 @@ def merge_issue_detailed(store, issue, packages, run_id):
                 continue
             source = r.get("source") or "unknown"
             # The report captures the complete signing key set of the mismatched
-            # APK via actual_keys. Fall back to the single actual fingerprint if
-            # actual_keys is absent (older reports).
+            # APK via actual_keys. An older report has no actual_keys and only
+            # carries the single `actual` fingerprint.
+            raw_keys = r.get("actual_keys")
+            has_complete = bool(raw_keys)
             keys = []
-            for k in r.get("actual_keys") or []:
+            for k in raw_keys or []:
                 kk = split_fingerprint(k)
                 if kk:
                     keys.append(kk)
@@ -184,10 +186,23 @@ def merge_issue_detailed(store, issue, packages, run_id):
             existing = next((e for e in entries if e["package"] == pkg), None)
             if existing:
                 action = "unchanged"
-                if set(existing.get("keys", [])) != set(keys):
-                    existing["keys"] = keys
-                    existing["source_issue"] = issue["number"]
-                    action = "updated"
+                if has_complete:
+                    # Authoritative report: the observed set is the complete key
+                    # set of the APK, so replace. This lets genuinely-dropped
+                    # signing keys be culled instead of accumulating forever.
+                    if set(existing.get("keys", [])) != set(keys):
+                        existing["keys"] = keys
+                        existing["source_issue"] = issue["number"]
+                        action = "updated"
+                else:
+                    # Degraded/older report: only a single fingerprint is known,
+                    # so union without shrinking. A smaller set here would
+                    # clobber the complete keys captured by a full report.
+                    merged = set(existing.get("keys", [])) | set(keys)
+                    if merged != set(existing.get("keys", [])):
+                        existing["keys"] = sorted(merged)
+                        existing["source_issue"] = issue["number"]
+                        action = "updated"
                 rows.append((pkg, source, action))
             else:
                 entries.append(

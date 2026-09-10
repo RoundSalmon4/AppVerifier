@@ -177,107 +177,35 @@ def is_valid_package_name(name):
     return bool(re.match(r'^[a-zA-Z][a-zA-Z0-9_]*(\.[a-zA-Z][a-zA-Z0-9_]*)+$', name))
 
 
-def _search_output(output):
-    m = FP_RE.search(output)
-    if m:
-        return normalize_fp(m.group(0))
-    m = RAW_HEX_RE.search(output)
-    if m:
-        return normalize_fp(m.group(1))
-    return None
-
-
 def _search_all_outputs(output):
-    """Return ALL normalized fingerprints found in apksigner/keytool output.
+    """Return the authoritative normalized fingerprints in cert output.
 
-    Multi-signer APKs can print a `SHA-256 digest:` line per certificate, so we
-    collect every match rather than the first one. Used to capture the complete
-    key set of a downloaded APK for the rotated-keys store.
+    The reliable fingerprint in apksigner/keytool output is the explicit
+    per-certificate line `certificate SHA-256 digest: <64 hex>`. We collect
+    those (via RAW_HEX_RE). We additionally collect colon-form FP_RE matches,
+    but only from lines that begin with a digest marker, so an unrelated
+    32-byte colon string elsewhere in the output is never mistaken for a
+    signing certificate.
     """
     fps = set()
-    for m in FP_RE.findall(output or ""):
-        fps.add(normalize_fp(m))
-    for m in RAW_HEX_RE.findall(output or ""):
-        fps.add(normalize_fp(m))
+    for m in RAW_HEX_RE.finditer(output or ""):
+        fps.add(normalize_fp(m.group(1)))
+    for line in (output or "").splitlines():
+        if re.search(r"(?:SHA-256|SHA256)\s+digest\s*:|\bdigest\s*:", line, re.I):
+            for m in FP_RE.finditer(line):
+                fps.add(normalize_fp(m.group(0)))
     return sorted(fps)
 
 
-def extract_fingerprint(apk_path):
-    if not os.path.getsize(apk_path):
-        return None
+def _fetch_cert_outputs(apk_path):
+    """Fetch signing-certificate info for an APK once.
 
-    apksigner_path = _find_apksigner() or "apksigner"
-    apksigner_out = ""
-    apksigner_err = ""
-    apksigner_rc = -1
-    try:
-        result = subprocess.run(
-            [apksigner_path, "verify", "--print-certs", apk_path],
-            capture_output=True,
-            text=True,
-            timeout=15,
-        )
-        apksigner_out = result.stdout.strip()
-        apksigner_err = result.stderr.strip()
-        apksigner_rc = result.returncode
-        fp = _search_output(apksigner_out) or _search_output(apksigner_err)
-        if fp:
-            return fp
-    except (subprocess.TimeoutExpired, FileNotFoundError) as e:
-        apksigner_err = str(e)
-
-    keytool_out = ""
-    keytool_err = ""
-    try:
-        result = subprocess.run(
-            ["keytool", "-printcert", "-jarfile", apk_path],
-            capture_output=True,
-            text=True,
-            timeout=15,
-        )
-        keytool_out = result.stdout.strip()
-        keytool_err = result.stderr.strip()
-        fp = _search_output(keytool_out) or _search_output(keytool_err)
-        if fp:
-            return fp
-    except (subprocess.TimeoutExpired, FileNotFoundError) as e:
-        keytool_err = str(e)
-
-    # fallback: extract JAR signature manually
-    for cert_file in ("META-INF/CERT.RSA", "META-INF/CERT.EC"):
-        try:
-            result = subprocess.run(
-                ["unzip", "-p", apk_path, cert_file],
-                capture_output=True,
-                timeout=15,
-            )
-            if result.returncode == 0 and result.stdout:
-                cert_result = subprocess.run(
-                    ["keytool", "-printcert", "-file", "-"],
-                    input=result.stdout,
-                    capture_output=True,
-                    timeout=15,
-                )
-                fp = _search_output(cert_result.stdout.decode())
-                if fp:
-                    return fp
-        except (subprocess.TimeoutExpired, FileNotFoundError):
-            pass
-
-    raise ExtractionError(apksigner_out, apksigner_err, apksigner_rc,
-                          keytool_out, keytool_err)
-
-
-def extract_all_fingerprints(apk_path):
-    """Return the complete list of signing-certificate fingerprints in an APK.
-
-    Prefers `apksigner verify --print-certs`, which prints one SHA-256 digest
-    per certificate for multi-signer APKs. Falls back to keytool if apksigner
-    is unavailable. Returns a sorted list of normalized fingerprints, or an
-    empty list if none could be extracted.
+    Runs the apksigner / keytool / JAR fallback pipeline a single time and
+    derives both the complete key set and the primary (first) fingerprint from
+    the same output, avoiding duplicate subprocess invocations.
     """
-    if not os.path.getsize(apk_path):
-        return []
+    if not os.path.isfile(apk_path) or os.path.getsize(apk_path) == 0:
+        return [], None
 
     apksigner_out = ""
     apksigner_err = ""
@@ -291,11 +219,12 @@ def extract_all_fingerprints(apk_path):
         )
         apksigner_out = result.stdout.strip()
         apksigner_err = result.stderr.strip()
-        fps = _search_all_outputs(apksigner_out) or _search_all_outputs(apksigner_err)
-        if fps:
-            return fps
     except (subprocess.TimeoutExpired, FileNotFoundError) as e:
         apksigner_err = str(e)
+
+    all_fps = _search_all_outputs(apksigner_out) or _search_all_outputs(apksigner_err)
+    if all_fps:
+        return all_fps, all_fps[0]
 
     keytool_out = ""
     keytool_err = ""
@@ -308,11 +237,12 @@ def extract_all_fingerprints(apk_path):
         )
         keytool_out = result.stdout.strip()
         keytool_err = result.stderr.strip()
-        fps = _search_all_outputs(keytool_out) or _search_all_outputs(keytool_err)
-        if fps:
-            return fps
     except (subprocess.TimeoutExpired, FileNotFoundError) as e:
         keytool_err = str(e)
+
+    all_fps = _search_all_outputs(keytool_out) or _search_all_outputs(keytool_err)
+    if all_fps:
+        return all_fps, all_fps[0]
 
     # fallback: extract JAR signature manually
     for cert_file in ("META-INF/CERT.RSA", "META-INF/CERT.EC"):
@@ -329,13 +259,26 @@ def extract_all_fingerprints(apk_path):
                     capture_output=True,
                     timeout=15,
                 )
-                fps = _search_all_outputs(cert_result.stdout.decode())
-                if fps:
-                    return fps
+                all_fps = _search_all_outputs(cert_result.stdout.decode())
+                if all_fps:
+                    return all_fps, all_fps[0]
         except (subprocess.TimeoutExpired, FileNotFoundError):
             pass
 
-    return []
+    return [], None
+
+
+def extract_fingerprint(apk_path):
+    """Return the primary signing-certificate fingerprint of an APK."""
+    _, primary = _fetch_cert_outputs(apk_path)
+    return primary
+
+
+def extract_all_fingerprints(apk_path):
+    """Return the complete list of signing-certificate fingerprints in an APK."""
+    all_fps, _ = _fetch_cert_outputs(apk_path)
+    return all_fps
+
 
 
 def fetch_fdroid_index(repo_url):
