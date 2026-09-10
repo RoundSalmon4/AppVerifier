@@ -62,6 +62,22 @@
       "source_issue": 106
     },
     {
+      "package": "com.google.android.apps.tasks",
+      "keys": [
+        "99:F6:CC:53:08:E6:F3:31:8A:3B:F1:68:BF:10:6D:5B:5D:EF:E2:B4:B9:C5:61:E5:DD:D7:92:4A:7A:2B:A1:E2",
+        "D6:67:92:62:16:32:4E:95:3D:0C:27:D4:4B:22:ED:20:F0:9D:63:A4:A2:04:86:FE:59:31:1A:F5:41:3A:08:45"
+      ],
+      "source_issue": 119
+    },
+    {
+      "package": "me.proton.android.lumo",
+      "keys": [
+        "A7:47:EA:EE:28:61:1E:25:21:7B:79:3C:07:BF:30:22:34:40:5C:FD:1E:19:06:81:62:55:6C:79:E5:BF:04:F0",
+        "DC:C9:43:9E:C1:A6:C6:A8:D0:20:3F:34:23:EE:42:BC:C8:B9:70:62:8E:53:CB:73:A0:39:3F:39:8D:D5:B8:53"
+      ],
+      "source_issue": 119
+    },
+    {
       "package": "se.onlinepizza",
       "keys": [
         "82:5D:1B:28:AE:88:17:43:58:D3:F4:68:79:F5:F6:53:F4:23:97:13:DB:96:E7:40:9C:C2:40:E0:79:AE:2C:4C",
