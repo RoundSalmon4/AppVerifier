@@ -32,6 +32,7 @@ MAINTAINER = "roundsalmon4"
 KEY_MARKER = "# rotated-keys"
 PACKAGE_RE = re.compile(r"^\s*package:\s*(.+?)\s*$", re.IGNORECASE)
 RUN_URL_RE = re.compile(r"Workflow run:\s*[^\s]+/actions/runs/(\d+)")
+VERIFY_WORKFLOW = "verify-database.yml"
 
 
 def split_fingerprint(fp):
@@ -101,6 +102,68 @@ def get_run_id(issue):
     return m.group(1) if m else None
 
 
+def list_verify_runs(limit=20):
+    """List recent Verify Database workflow runs, newest first.
+
+    Returns run ids for completed runs only. The store then reflects the
+    latest downloaded key sets rather than a report pinned to an issue.
+    """
+    try:
+        out = run_gh(
+            [
+                "run", "list",
+                "--workflow", VERIFY_WORKFLOW,
+                "--limit", str(limit),
+                "--json", "databaseId,status,conclusion",
+            ]
+        )
+    except subprocess.CalledProcessError:
+        print("WARN could not list verify-database runs")
+        return []
+    runs = json.loads(out)
+    return [r["databaseId"] for r in runs if r.get("status") == "completed"]
+
+
+def resolve_latest_reports(packages, temp_root):
+    """Find the newest completed verify report that still lists each package.
+
+    Each package is resolved to the most recent report that carries it as a
+    mismatch with a complete `actual_keys` set, walking runs newest-first.
+    Packages with no newer covering report are left out so callers fall back
+    to the report pinned to the confirmng issue.
+
+    Returns dict package -> {"report": path, "source": str}.
+    """
+    result = {}
+    remaining = set(packages)
+    os.makedirs(temp_root, exist_ok=True)
+    for run_id in list_verify_runs():
+        if not remaining:
+            break
+        run_dir = os.path.join(temp_root, f"run-{run_id}")
+        os.makedirs(run_dir, exist_ok=True)
+        report_path = download_report(str(run_id), run_dir)
+        if not report_path:
+            continue
+        with open(report_path, "r", encoding="utf-8") as f:
+            report = json.load(f)
+        for r in report.get("results", []):
+            pkg = r.get("package")
+            if pkg not in remaining:
+                continue
+            if r.get("status") != "mismatch":
+                continue
+            if not r.get("actual_keys"):
+                continue
+            result[pkg] = {
+                "report": report_path,
+                "source": r.get("source") or "unknown",
+                "run_id": str(run_id),
+            }
+            remaining.discard(pkg)
+    return result
+
+
 def download_report(run_id, dest_dir):
     """Download the verify-report artifact for a run into dest_dir.
 
@@ -139,31 +202,46 @@ def write_store(path, store):
         f.write("\n")
 
 
-def merge_issue_detailed(store, issue, packages, run_id):
-    """Merge confirmed rotated keys from an issue's report into the store.
+def merge_issue_detailed(store, issue, packages, run_id, latest_reports=None):
+    """Merge confirmed rotated keys into the store.
 
-    Returns a list of (package, source, action) tuples describing what happened
-    so the workflow can produce a review summary.
+    `latest_reports` is an optional dict package -> {"report", "source"} built
+    from the most recent completed verify report that still lists the package
+    as a mismatch. When present it is preferred over the report pinned to the
+    issue, so the store does not stay stuck on stale key sets.
+
+    Returns a list of (package, source, action, run_id) tuples describing what
+    happened so the workflow can produce a review summary.
     """
     rows = []
     with tempfile.TemporaryDirectory() as tmp:
-        report_path = download_report(run_id, tmp)
-        if not report_path:
-            print(f"WARN issue #{issue['number']}: no report, skipping {packages}")
-            return rows
-        with open(report_path, "r", encoding="utf-8") as f:
-            report = json.load(f)
-        results = {r.get("package"): r for r in report.get("results", [])}
-
+        report_cache = {}
         for pkg in packages:
-            if pkg not in results:
+            latest = (latest_reports or {}).get(pkg)
+            report_path = latest["report"] if latest else None
+            source = (latest or {}).get("source") or "unknown"
+            used_run = (latest or {}).get("run_id")
+            if report_path is None:
+                # Fall back to the report pinned to the confirming issue.
+                report_path = report_cache.get(run_id)
+                if report_path is None:
+                    report_path = download_report(run_id, tmp)
+                    report_cache[run_id] = report_path
+                used_run = run_id
+            if not report_path:
+                print(f"WARN issue #{issue['number']}: no report for {pkg}, skipping")
+                continue
+            with open(report_path, "r", encoding="utf-8") as f:
+                report = json.load(f)
+            results = {r.get("package"): r for r in report.get("results", [])}
+            r = results.get(pkg)
+            if r is None:
                 print(f"WARN issue #{issue['number']}: package {pkg} not in report")
                 continue
-            r = results[pkg]
             if r.get("status") != "mismatch":
                 print(f"WARN issue #{issue['number']}: {pkg} is not a mismatch, skipping")
                 continue
-            source = r.get("source") or "unknown"
+            source = r.get("source") or source
             # The report captures the complete signing key set of the mismatched
             # APK via actual_keys. An older report has no actual_keys and only
             # carries the single `actual` fingerprint.
@@ -203,7 +281,7 @@ def merge_issue_detailed(store, issue, packages, run_id):
                         existing["keys"] = sorted(merged)
                         existing["source_issue"] = issue["number"]
                         action = "updated"
-                rows.append((pkg, source, action))
+                rows.append((pkg, source, action, used_run))
             else:
                 entries.append(
                     {
@@ -212,7 +290,7 @@ def merge_issue_detailed(store, issue, packages, run_id):
                         "source_issue": issue["number"],
                     }
                 )
-                rows.append((pkg, source, "added"))
+                rows.append((pkg, source, "added", used_run))
     return rows
 
 
@@ -404,6 +482,11 @@ def main():
     print(f"FOUND {len(issues)} rotatedkey-labeled issues")
     summary_rows = []  # (package, action, issue, run, source)
     total_added = 0
+
+    # Collect every confirmed package up front so the latest-report lookup can
+    # be run once against the newest verify reports instead of per issue.
+    confirmed_by_issue = {}
+    all_packages = set()
     for issue in issues:
         packages = extract_confirmed_packages(issue)
         if not packages:
@@ -413,8 +496,24 @@ def main():
         if not run_id:
             print(f"WARN issue #{issue['number']}: no workflow run url, skipping")
             continue
-        for pkg, source, action in merge_issue_detailed(store, issue, packages, run_id):
-            summary_rows.append((pkg, action, issue["number"], run_id, source))
+        confirmed_by_issue[issue["number"]] = {
+            "packages": packages,
+            "fallback_run": run_id,
+        }
+        all_packages.update(packages)
+
+    latest_reports = {}
+    if all_packages:
+        with tempfile.TemporaryDirectory() as tmp:
+            latest_reports = resolve_latest_reports(all_packages, tmp)
+
+    for issue_num, entry in confirmed_by_issue.items():
+        packages = entry["packages"]
+        run_id = entry["fallback_run"]
+        for pkg, source, action, used_run in merge_issue_detailed(
+            store, {"number": issue_num}, packages, run_id, latest_reports
+        ):
+            summary_rows.append((pkg, action, issue_num, used_run, source))
             if action in ("added", "updated"):
                 total_added += 1
 
