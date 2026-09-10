@@ -165,24 +165,44 @@ def is_valid_package_name(name):
     return bool(re.match(r'^[a-zA-Z][a-zA-Z0-9_]*(\.[a-zA-Z][a-zA-Z0-9_]*)+$', name))
 
 
-def _search_all_outputs(output):
-    """Return the authoritative normalized fingerprints in cert output.
+def _is_source_stamp(line):
+    """apksigner stamps Play-distributed bundles with a SourceStamp cert.
 
-    The reliable fingerprint in apksigner/keytool output is the explicit
-    per-certificate line `certificate SHA-256 digest: <64 hex>`. We collect
-    those (via RAW_HEX_RE). We additionally collect colon-form FP_RE matches,
-    but only from lines that begin with a digest marker, so an unrelated
-    32-byte colon string elsewhere in the output is never mistaken for a
-    signing certificate.
+    The stamped certificate is Google's universal Play signing stamp,
+    identical across every bundle it signs. It is appended to advertised
+    `certificate SHA-256 digest:` lines and is never the app's own key, so
+    it must not be treated as a signer.
+    """
+    return re.search(r"\bsource\s+stamp\b", line or "", re.I) is not None
+
+
+def _search_all_outputs(output):
+    """Return (all_fps, primary) for apksigner/keytool cert output.
+
+    The primary is the fingerprint that appears FIRST in the output's
+    `certificate SHA-256 digest:` lines (matching the original extractor's
+    behavior), NOT the lexicographically-first value. `all_fps` is the
+    complete set in discovery order. SourceStamp certificates are skipped.
     """
     fps = set()
-    for m in RAW_HEX_RE.finditer(output or ""):
-        fps.add(normalize_fp(m.group(1)))
+    ordered = []
     for line in (output or "").splitlines():
+        if _is_source_stamp(line):
+            continue
+        if re.search(r"(?:certificate\s+)?(?:SHA-256|SHA256)\s+digest\s*:", line, re.I):
+            for m in RAW_HEX_RE.finditer(line):
+                norm = normalize_fp(m.group(1))
+                if norm not in fps:
+                    fps.add(norm)
+                    ordered.append(norm)
         if re.search(r"(?:SHA-256|SHA256)\s+digest\s*:|\bdigest\s*:", line, re.I):
             for m in FP_RE.finditer(line):
-                fps.add(normalize_fp(m.group(0)))
-    return sorted(fps)
+                norm = normalize_fp(m.group(0))
+                if norm not in fps:
+                    fps.add(norm)
+                    ordered.append(norm)
+    primary = ordered[0] if ordered else None
+    return fps, primary
 
 
 def _fetch_cert_outputs(apk_path):
@@ -210,9 +230,11 @@ def _fetch_cert_outputs(apk_path):
     except (subprocess.TimeoutExpired, FileNotFoundError) as e:
         apksigner_err = str(e)
 
-    all_fps = _search_all_outputs(apksigner_out) or _search_all_outputs(apksigner_err)
-    if all_fps:
-        return all_fps, all_fps[0]
+    fps, primary = _search_all_outputs(apksigner_out)
+    if not primary:
+        fps, primary = _search_all_outputs(apksigner_err)
+    if primary:
+        return sorted(fps), primary
 
     keytool_out = ""
     keytool_err = ""
@@ -228,9 +250,11 @@ def _fetch_cert_outputs(apk_path):
     except (subprocess.TimeoutExpired, FileNotFoundError) as e:
         keytool_err = str(e)
 
-    all_fps = _search_all_outputs(keytool_out) or _search_all_outputs(keytool_err)
-    if all_fps:
-        return all_fps, all_fps[0]
+    fps, primary = _search_all_outputs(keytool_out)
+    if not primary:
+        fps, primary = _search_all_outputs(keytool_err)
+    if primary:
+        return sorted(fps), primary
 
     # fallback: extract JAR signature manually
     for cert_file in ("META-INF/CERT.RSA", "META-INF/CERT.EC"):
@@ -247,9 +271,9 @@ def _fetch_cert_outputs(apk_path):
                     capture_output=True,
                     timeout=15,
                 )
-                all_fps = _search_all_outputs(cert_result.stdout.decode())
-                if all_fps:
-                    return all_fps, all_fps[0]
+                fps, primary = _search_all_outputs(cert_result.stdout.decode())
+                if primary:
+                    return sorted(fps), primary
         except (subprocess.TimeoutExpired, FileNotFoundError):
             pass
 
