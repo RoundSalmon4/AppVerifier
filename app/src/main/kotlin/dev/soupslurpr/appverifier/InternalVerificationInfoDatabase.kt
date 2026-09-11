@@ -1740,6 +1740,20 @@ private fun __db_c0(): Set<InternalDatabaseVerificationInfo> =
         )
     ),
     InternalDatabaseVerificationInfo(
+        "com.apple.android.music.classical",
+        listOf(
+            Hashes(
+                listOf(
+                    Source.GOOGLE_PLAY_STORE
+                ),
+                listOf(
+                    "88:BA:59:0E:C2:E1:EA:33:C4:45:8D:AF:59:48:9F:AE:E2:CE:F2:97:A9:B4:07:1E:18:CF:82:EF:53:11:00:AA"
+                ),
+                false
+            )
+        )
+    ),
+    InternalDatabaseVerificationInfo(
         "com.apple.atve.androidtv.appletv",
         listOf(
             Hashes(
@@ -1748,6 +1762,20 @@ private fun __db_c0(): Set<InternalDatabaseVerificationInfo> =
                 ),
                 listOf(
                     "77:1D:86:74:D3:D9:83:7C:9E:DF:11:B1:18:73:44:39:98:F1:91:05:AB:CE:CA:B4:25:ED:9B:8E:6F:EF:FF:9B"
+                ),
+                false
+            )
+        )
+    ),
+    InternalDatabaseVerificationInfo(
+        "com.apple.movetoios",
+        listOf(
+            Hashes(
+                listOf(
+                    Source.GOOGLE_PLAY_STORE
+                ),
+                listOf(
+                    "88:BA:59:0E:C2:E1:EA:33:C4:45:8D:AF:59:48:9F:AE:E2:CE:F2:97:A9:B4:07:1E:18:CF:82:EF:53:11:00:AA"
                 ),
                 false
             )
@@ -3377,6 +3405,10 @@ private fun __db_c0(): Set<InternalDatabaseVerificationInfo> =
             )
         )
     ),
+    )
+
+private fun __db_c1(): Set<InternalDatabaseVerificationInfo> =
+    setOf(
     InternalDatabaseVerificationInfo(
         "com.defend3dapp",
         listOf(
@@ -3405,10 +3437,6 @@ private fun __db_c0(): Set<InternalDatabaseVerificationInfo> =
             )
         )
     ),
-    )
-
-private fun __db_c1(): Set<InternalDatabaseVerificationInfo> =
-    setOf(
     InternalDatabaseVerificationInfo(
         "com.demizo.daily_you",
         listOf(
@@ -3679,6 +3707,20 @@ private fun __db_c1(): Set<InternalDatabaseVerificationInfo> =
                 ),
                 listOf(
                     "A0:32:B0:9E:9A:AD:9E:06:F5:90:6E:39:0D:69:B6:13:5D:FE:F1:BA:20:D8:4B:A5:3E:4B:2A:4A:ED:64:2E:31"
+                ),
+                false
+            )
+        )
+    ),
+    InternalDatabaseVerificationInfo(
+        "com.driot.bookplayerpure",
+        listOf(
+            Hashes(
+                listOf(
+                    Source.GOOGLE_PLAY_STORE
+                ),
+                listOf(
+                    "9E:73:D3:BA:39:DE:BA:6C:A9:DF:06:E2:8B:D9:BC:85:90:55:B8:6C:5A:17:29:93:0B:EF:25:84:86:19:85:74"
                 ),
                 false
             )
@@ -4495,6 +4537,34 @@ private fun __db_c1(): Set<InternalDatabaseVerificationInfo> =
                 ),
                 listOf(
                     "5A:6A:DE:A2:F3:F8:49:65:8E:8D:3E:8B:05:4A:75:A4:86:D7:5B:E6:1A:BC:B7:60:8B:09:4B:62:DA:85:51:3E"
+                ),
+                false
+            )
+        )
+    ),
+    InternalDatabaseVerificationInfo(
+        "com.frontrow.flow",
+        listOf(
+            Hashes(
+                listOf(
+                    Source.GOOGLE_PLAY_STORE
+                ),
+                listOf(
+                    "54:F8:D5:47:C7:1F:25:AF:CD:09:17:28:91:55:F7:D2:DD:9D:76:7F:5D:E1:48:C0:C0:7C:4E:19:E3:4B:E6:1F"
+                ),
+                false
+            )
+        )
+    ),
+    InternalDatabaseVerificationInfo(
+        "com.frontrow.vlog",
+        listOf(
+            Hashes(
+                listOf(
+                    Source.GOOGLE_PLAY_STORE
+                ),
+                listOf(
+                    "54:F8:D5:47:C7:1F:25:AF:CD:09:17:28:91:55:F7:D2:DD:9D:76:7F:5D:E1:48:C0:C0:7C:4E:19:E3:4B:E6:1F"
                 ),
                 false
             )
@@ -6966,6 +7036,10 @@ private fun __db_c1(): Set<InternalDatabaseVerificationInfo> =
             )
         )
     ),
+    )
+
+private fun __db_c2(): Set<InternalDatabaseVerificationInfo> =
+    setOf(
     InternalDatabaseVerificationInfo(
         "com.limbo.emu.main.arm",
         listOf(
@@ -7040,10 +7114,6 @@ private fun __db_c1(): Set<InternalDatabaseVerificationInfo> =
             )
         )
     ),
-    )
-
-private fun __db_c2(): Set<InternalDatabaseVerificationInfo> =
-    setOf(
     InternalDatabaseVerificationInfo(
         "com.lonelycatgames.Xplore",
         listOf(
@@ -7655,6 +7725,20 @@ private fun __db_c2(): Set<InternalDatabaseVerificationInfo> =
                 ),
                 listOf(
                     "EA:C7:62:C6:D4:E9:7D:5A:BB:5F:0D:02:36:EA:32:CE:C4:B1:67:1F:9E:AA:FB:D1:25:5F:36:B4:D3:97:20:A9"
+                ),
+                false
+            )
+        )
+    ),
+    InternalDatabaseVerificationInfo(
+        "com.mooneva.app",
+        listOf(
+            Hashes(
+                listOf(
+                    Source.GOOGLE_PLAY_STORE
+                ),
+                listOf(
+                    "96:B0:1B:6F:20:C4:6B:35:46:70:A1:00:92:7F:72:1D:40:3E:07:E8:BA:25:96:B5:27:24:AC:21:39:56:9F:83"
                 ),
                 false
             )
@@ -8944,6 +9028,20 @@ private fun __db_c2(): Set<InternalDatabaseVerificationInfo> =
         )
     ),
     InternalDatabaseVerificationInfo(
+        "com.rbs.mobile.android.natwest",
+        listOf(
+            Hashes(
+                listOf(
+                    Source.GOOGLE_PLAY_STORE
+                ),
+                listOf(
+                    "9E:AD:6F:DE:83:B2:1B:F1:BD:42:BC:ED:1D:A1:A1:0F:82:2B:63:45:B6:D3:CC:8A:FC:26:E6:6B:B2:0F:97:7F"
+                ),
+                false
+            )
+        )
+    ),
+    InternalDatabaseVerificationInfo(
         "com.red.by.dufry",
         listOf(
             Hashes(
@@ -8978,6 +9076,20 @@ private fun __db_c2(): Set<InternalDatabaseVerificationInfo> =
             Hashes(
                 listOf(
                     Source.DIRECT_APK_LINK
+                ),
+                listOf(
+                    "D7:A5:EA:B3:09:02:C9:B2:77:5A:F6:FB:4E:AC:2D:29:4A:64:63:4F:B4:7D:D1:38:2B:C3:AC:5B:F6:69:98:2E"
+                ),
+                false
+            )
+        )
+    ),
+    InternalDatabaseVerificationInfo(
+        "com.retroarch.aarch64",
+        listOf(
+            Hashes(
+                listOf(
+                    Source.GOOGLE_PLAY_STORE
                 ),
                 listOf(
                     "D7:A5:EA:B3:09:02:C9:B2:77:5A:F6:FB:4E:AC:2D:29:4A:64:63:4F:B4:7D:D1:38:2B:C3:AC:5B:F6:69:98:2E"
@@ -10100,6 +10212,10 @@ private fun __db_c2(): Set<InternalDatabaseVerificationInfo> =
             )
         )
     ),
+    )
+
+private fun __db_c3(): Set<InternalDatabaseVerificationInfo> =
+    setOf(
     InternalDatabaseVerificationInfo(
         "com.superproductivity.superproductivity",
         listOf(
@@ -10233,10 +10349,6 @@ private fun __db_c2(): Set<InternalDatabaseVerificationInfo> =
             )
         )
     ),
-    )
-
-private fun __db_c3(): Set<InternalDatabaseVerificationInfo> =
-    setOf(
     InternalDatabaseVerificationInfo(
         "com.termux",
         listOf(
@@ -10866,6 +10978,26 @@ private fun __db_c3(): Set<InternalDatabaseVerificationInfo> =
                 ),
                 listOf(
                     "20:61:C5:C9:28:9C:00:02:08:81:B7:E5:33:4D:93:A0:2D:FA:4B:E9:80:AF:20:C0:5D:B4:E5:29:C8:DA:5B:54"
+                ),
+                false
+            ),
+            Hashes(
+                listOf(
+                    Source.GOOGLE_PLAY_STORE
+                ),
+                listOf(
+                    "A7:21:7F:D4:31:D2:2E:CB:BE:CF:8F:E0:73:36:57:60:47:DC:D8:D9:BD:29:04:04:91:F9:D5:7D:94:A5:43:C7"
+                ),
+                false
+            ),
+            Hashes(
+                listOf(
+                    Source.DIRECT_APK_LINK,
+                    Source.GOOGLE_PLAY_STORE
+                ),
+                listOf(
+                    "20:61:C5:C9:28:9C:00:02:08:81:B7:E5:33:4D:93:A0:2D:FA:4B:E9:80:AF:20:C0:5D:B4:E5:29:C8:DA:5B:54",
+                    "A7:21:7F:D4:31:D2:2E:CB:BE:CF:8F:E0:73:36:57:60:47:DC:D8:D9:BD:29:04:04:91:F9:D5:7D:94:A5:43:C7"
                 ),
                 false
             )
@@ -11602,6 +11734,20 @@ private fun __db_c3(): Set<InternalDatabaseVerificationInfo> =
         )
     ),
     InternalDatabaseVerificationInfo(
+        "com.workday.workdroidapp",
+        listOf(
+            Hashes(
+                listOf(
+                    Source.GOOGLE_PLAY_STORE
+                ),
+                listOf(
+                    "8B:85:52:7E:C6:9D:D1:DC:9E:49:E6:53:5C:E0:13:01:19:20:8F:F6:4A:43:8C:B0:6C:9A:87:04:A9:2E:8B:2E"
+                ),
+                false
+            )
+        )
+    ),
+    InternalDatabaseVerificationInfo(
         "com.x8bit.bitwarden",
         listOf(
             Hashes(
@@ -11915,6 +12061,20 @@ private fun __db_c3(): Set<InternalDatabaseVerificationInfo> =
                 ),
                 listOf(
                     "D8:6E:FE:15:1E:09:BF:4C:A8:44:0C:B3:BF:A0:A8:1B:E2:54:4F:70:C7:85:87:DA:F0:26:6D:FC:A2:FA:25:DF"
+                ),
+                false
+            )
+        )
+    ),
+    InternalDatabaseVerificationInfo(
+        "com.zoho.creator.portal",
+        listOf(
+            Hashes(
+                listOf(
+                    Source.GOOGLE_PLAY_STORE
+                ),
+                listOf(
+                    "A9:D6:D0:A2:AF:DB:15:84:9B:8C:D3:1D:51:FE:73:B8:E1:B1:70:BA:A5:70:C2:F8:F2:A3:F8:65:28:29:CB:BD"
                 ),
                 false
             )
@@ -13483,6 +13643,20 @@ private fun __db_c3(): Set<InternalDatabaseVerificationInfo> =
         )
     ),
     InternalDatabaseVerificationInfo(
+        "exa.free.bbin",
+        listOf(
+            Hashes(
+                listOf(
+                    Source.GOOGLE_PLAY_STORE
+                ),
+                listOf(
+                    "50:7C:1F:58:38:AD:8D:90:B7:75:E3:DE:31:21:42:C3:8A:63:BF:BB:67:E8:D9:C4:CA:86:1C:67:0E:13:98:49"
+                ),
+                false
+            )
+        )
+    ),
+    InternalDatabaseVerificationInfo(
         "exa.lnx.a",
         listOf(
             Hashes(
@@ -13497,6 +13671,10 @@ private fun __db_c3(): Set<InternalDatabaseVerificationInfo> =
             )
         )
     ),
+    )
+
+private fun __db_c4(): Set<InternalDatabaseVerificationInfo> =
+    setOf(
     InternalDatabaseVerificationInfo(
         "fe.linksheet.nightly",
         listOf(
@@ -13688,10 +13866,6 @@ private fun __db_c3(): Set<InternalDatabaseVerificationInfo> =
             )
         )
     ),
-    )
-
-private fun __db_c4(): Set<InternalDatabaseVerificationInfo> =
-    setOf(
     InternalDatabaseVerificationInfo(
         "fr.emersion.goguma.play",
         listOf(
@@ -13946,6 +14120,20 @@ private fun __db_c4(): Set<InternalDatabaseVerificationInfo> =
                 ),
                 listOf(
                     "F3:FF:38:D2:E5:A6:38:84:86:4A:4E:0D:45:C5:3B:19:8E:7E:39:C0:50:5B:D9:63:F5:55:D6:53:2D:EA:BF:5F"
+                ),
+                false
+            )
+        )
+    ),
+    InternalDatabaseVerificationInfo(
+        "image.canon",
+        listOf(
+            Hashes(
+                listOf(
+                    Source.GOOGLE_PLAY_STORE
+                ),
+                listOf(
+                    "7C:8A:2F:7C:E4:91:2D:0E:4F:25:B9:D4:AF:E0:37:F8:FE:0F:CE:C5:25:B7:78:F0:0A:F3:B3:6D:F5:32:49:00"
                 ),
                 false
             )
@@ -14711,6 +14899,76 @@ private fun __db_c4(): Set<InternalDatabaseVerificationInfo> =
                 ),
                 listOf(
                     "D8:BE:42:57:71:A1:1F:7A:2B:12:1C:DB:21:A1:47:10:42:0F:1C:AA:16:65:EB:55:4E:9F:F5:AD:33:7C:91:FD"
+                ),
+                false
+            )
+        )
+    ),
+    InternalDatabaseVerificationInfo(
+        "jp.co.canon.android.printservice.plugin",
+        listOf(
+            Hashes(
+                listOf(
+                    Source.GOOGLE_PLAY_STORE
+                ),
+                listOf(
+                    "B8:8C:65:F0:F2:5E:61:BA:8C:76:74:27:C5:34:9F:B7:0B:FA:79:E2:B8:24:87:D3:32:F8:BB:0F:AD:B4:59:AF"
+                ),
+                false
+            )
+        )
+    ),
+    InternalDatabaseVerificationInfo(
+        "jp.co.canon.bsd.easyphotoprinteditor",
+        listOf(
+            Hashes(
+                listOf(
+                    Source.GOOGLE_PLAY_STORE
+                ),
+                listOf(
+                    "17:6E:98:E6:70:67:DA:BF:63:97:4B:C5:44:1C:20:74:2F:FE:4E:DB:58:95:0A:27:8C:A6:05:4A:C0:5B:C4:FF"
+                ),
+                false
+            )
+        )
+    ),
+    InternalDatabaseVerificationInfo(
+        "jp.co.canon.bsd.remotemonitoring",
+        listOf(
+            Hashes(
+                listOf(
+                    Source.GOOGLE_PLAY_STORE
+                ),
+                listOf(
+                    "92:7F:4C:69:42:4E:87:B9:56:71:66:53:32:DC:A9:82:B3:C8:D2:AD:CB:9F:C1:E1:AB:9D:98:1C:CE:D9:C1:EF"
+                ),
+                false
+            )
+        )
+    ),
+    InternalDatabaseVerificationInfo(
+        "jp.co.canon.ic.ctp",
+        listOf(
+            Hashes(
+                listOf(
+                    Source.GOOGLE_PLAY_STORE
+                ),
+                listOf(
+                    "D9:5E:8C:B6:63:FC:E5:98:FD:1C:8A:C7:D5:92:BB:40:64:33:55:8A:3F:E0:4D:E8:BE:BD:68:9E:D0:9C:3D:A0"
+                ),
+                false
+            )
+        )
+    ),
+    InternalDatabaseVerificationInfo(
+        "jp.co.canon.oip.android.opal",
+        listOf(
+            Hashes(
+                listOf(
+                    Source.GOOGLE_PLAY_STORE
+                ),
+                listOf(
+                    "E9:37:77:B2:72:E1:11:F3:E8:5E:1C:48:B7:C9:FD:AE:89:A7:EF:28:E3:FE:17:52:7C:AB:E4:2D:03:CB:0B:70"
                 ),
                 false
             )
@@ -17283,6 +17541,10 @@ private fun __db_c4(): Set<InternalDatabaseVerificationInfo> =
             )
         )
     ),
+    )
+
+private fun __db_c5(): Set<InternalDatabaseVerificationInfo> =
+    setOf(
     InternalDatabaseVerificationInfo(
         "org.secuso.privacyfriendlynotes",
         listOf(
@@ -17632,10 +17894,6 @@ private fun __db_c4(): Set<InternalDatabaseVerificationInfo> =
             )
         )
     ),
-    )
-
-private fun __db_c5(): Set<InternalDatabaseVerificationInfo> =
-    setOf(
     InternalDatabaseVerificationInfo(
         "org.wikipedia",
         listOf(
@@ -17788,6 +18046,20 @@ private fun __db_c5(): Set<InternalDatabaseVerificationInfo> =
                 ),
                 listOf(
                     "2C:5B:61:53:7D:0B:18:C8:E8:58:CC:F3:F4:85:A8:B0:FA:34:50:B6:17:C6:21:1D:18:50:77:78:1F:26:F0:30"
+                ),
+                false
+            )
+        )
+    ),
+    InternalDatabaseVerificationInfo(
+        "pl.bydgoszcz.aktywna",
+        listOf(
+            Hashes(
+                listOf(
+                    Source.GOOGLE_PLAY_STORE
+                ),
+                listOf(
+                    "B0:A9:72:42:DB:82:E3:DA:27:5E:49:E9:1F:25:23:6C:A0:7F:AA:AC:61:4F:54:49:9E:D6:23:B9:65:DA:3E:26"
                 ),
                 false
             )
